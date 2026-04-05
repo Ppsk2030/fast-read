@@ -41,6 +41,7 @@ import { AuthProvider } from './auth/AuthContext';
 import SignInPrompt from './auth/SignInPrompt';
 import UserAvatar from './components/UserAvatar';
 import ResetConfirmModal from './components/ResetConfirmModal';
+import ExitConfirmDialog from './components/ExitConfirmDialog';
 import ThemeToggle from './components/ThemeToggle';
 import { Toaster, toast } from 'react-hot-toast';
 import { PRESET_MODES } from './config/readingModePresets';
@@ -48,8 +49,10 @@ import { WELCOME_TEXT } from './config/welcomeText';
 import type { Theme } from './context/readerContextDef';
 import type { PresetModeId } from './types/readingModes';
 import { App as CapApp } from '@capacitor/app';
-import { isNative } from './utils/platform';
+import { isNative, isAndroid } from './utils/platform';
 import { readNativeFile } from './utils/nativeFileReader';
+import { supabase, isSupabaseConfigured } from './config/supabase';
+import DonateButton from './components/DonateButton';
 import './styles/app.css';
 
 /** Minimal interface for the PWA File Handling API (Chrome / Edge). */
@@ -157,6 +160,7 @@ export default function App() {
   const [isEyeFocus, setIsEyeFocus] = useState(false);
   const [showPaste, setShowPaste] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [sessionCompleted, setSessionCompleted] = useState(false);
   const [, setContextExpanded] = useState(false);
   const [showPostOnboardingCoach, setShowPostOnboardingCoach] = useState(false);
@@ -171,6 +175,13 @@ export default function App() {
   // Ref to mirror isPlaying without stale closure issues (used by visibilitychange handler)
   const isPlayingRef = useRef(isPlaying);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+
+  // Refs to mirror modal states for the back button listener (avoids stale closure issues)
+  const showHelpRef = useRef(false);
+  useEffect(() => { showHelpRef.current = showHelp; }, [showHelp]);
+  const showWhatsNewRef = useRef(false);
+  const showResetConfirmRef = useRef(false);
+  useEffect(() => { showResetConfirmRef.current = showResetConfirm; }, [showResetConfirm]);
 
   // Stable ref to always hold the latest handleFileSelect without requiring the
   // native/launchQueue effect to re-run when records or wpm change.
@@ -191,6 +202,7 @@ export default function App() {
       return seen !== null && seen !== APP_VERSION;
     },
   );
+  useEffect(() => { showWhatsNewRef.current = showWhatsNew; }, [showWhatsNew]);
   // Onboarding: not shown immediately — triggered by handleWhatsNewDismiss
   // if user has never completed it, or shown directly if no version bump
   const [showOnboarding, setShowOnboarding] = useState<boolean>(
@@ -566,9 +578,26 @@ export default function App() {
     };
 
     if (isNative()) {
+      const isAuthCallback = (url: string) =>
+        url.startsWith('ca.techscript.paceread://auth');
+
+      const exchangeSession = async (url: string) => {
+        if (isSupabaseConfigured && supabase) {
+          try {
+            await supabase.auth.exchangeCodeForSession(url);
+          } catch (err) {
+            console.error('[OAuth] Session exchange failed:', err);
+          }
+        }
+      };
+
       // --- Cold launch: app was not running when the file was tapped ---
       CapApp.getLaunchUrl().then(async (result) => {
         if (!result?.url) return;
+        if (isAuthCallback(result.url)) {
+          await exchangeSession(result.url);
+          return;
+        }
         await openFromNativeUrl(result.url);
       }).catch((err: unknown) => {
         console.warn('[file-open] getLaunchUrl failed:', err);
@@ -578,6 +607,10 @@ export default function App() {
       let listenerHandle: { remove: () => void } | null = null;
       CapApp.addListener('appUrlOpen', async (data: { url: string }) => {
         if (!data?.url) return;
+        if (isAuthCallback(data.url)) {
+          await exchangeSession(data.url);
+          return;
+        }
         await openFromNativeUrl(data.url);
       }).then((handle) => {
         listenerHandle = handle;
@@ -585,8 +618,22 @@ export default function App() {
         console.warn('[file-open] addListener failed:', err);
       });
 
+      // --- Back button: dismiss modals or show exit confirm ---
+      let backHandler: { remove: () => void } | null = null;
+      CapApp.addListener('backButton', () => {
+        if (showHelpRef.current) { setShowHelp(false); return; }
+        if (showWhatsNewRef.current) { setShowWhatsNew(false); return; }
+        if (showResetConfirmRef.current) { setShowResetConfirm(false); return; }
+        setShowExitConfirm(true);
+      }).then((handle) => {
+        backHandler = handle;
+      }).catch((err: unknown) => {
+        console.warn('[back-button] addListener failed:', err);
+      });
+
       return () => {
         listenerHandle?.remove();
+        backHandler?.remove();
       };
     } else {
       // --- PWA File Handling API (Chrome / Edge on desktop and Android) ---
@@ -767,6 +814,7 @@ export default function App() {
           </div>
         </div>
         <div className="topBarActions">
+          {!isAndroid() && <DonateButton />}
           <ThemeToggle />
           <button
             className="helpBtn"
@@ -923,6 +971,12 @@ export default function App() {
             );
           }}
           onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
+
+      {showExitConfirm && (
+        <ExitConfirmDialog onCancel={() => setShowExitConfirm(false)}
+          onExit={() => CapApp.exitApp()}
         />
       )}
 
