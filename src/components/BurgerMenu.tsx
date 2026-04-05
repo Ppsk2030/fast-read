@@ -28,6 +28,8 @@ import { IndexedDBService } from '../sync/IndexedDBService';
 import { getThemeOrpAccent } from '../config/orpColors';
 import toast from 'react-hot-toast';
 import { useAuth } from '../auth/useAuth';
+import { isAndroid } from '../utils/platform';
+import DonateButton from './DonateButton';
 import styles from '../styles/BurgerMenu.module.css';
 
 const THEME_ICONS: Record<Theme, string> = {
@@ -385,6 +387,12 @@ export default function BurgerMenu({ onFileSelect, onReplayIntro, onResumeFromCa
                   </button>
                 )}
               </section>
+
+              {isAndroid() && (
+                <div style={{ padding: '12px 0 4px' }}>
+                  <DonateButton />
+                </div>
+              )}
 
             </div>
           </div>

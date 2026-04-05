@@ -7,6 +7,7 @@
 
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 import type { User, Session } from '@supabase/supabase-js';
+import { Capacitor } from '@capacitor/core';
 
 export type AuthUser = User;
 export type AuthSession = Session;
@@ -23,10 +24,13 @@ export const AuthService = {
    */
   async signInWithGoogle(): Promise<void> {
     if (!isSupabaseConfigured || !supabase) return;
+    const redirectTo = Capacitor.getPlatform() === 'android'
+      ? 'ca.techscript.paceread://auth/callback'
+      : window.location.origin;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo,
       },
     });
     if (error) throw error;

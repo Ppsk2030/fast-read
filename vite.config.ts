@@ -2,11 +2,13 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 // https://vite.dev/config/
 export default defineConfig({
   // Served at the root of the paceread.techscript.ca subdomain
   base: '/',
+  build: { sourcemap: true },
   plugins: [
     react(),
     VitePWA({
@@ -62,6 +64,14 @@ export default defineConfig({
         globIgnores: ['**/pdf.worker*'],
       },
     }),
+    ...(process.env.SENTRY_AUTH_TOKEN
+      ? [sentryVitePlugin({
+          org: 'techscript',
+          project: 'paceread',
+          authToken: process.env.SENTRY_AUTH_TOKEN,
+          sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+        })]
+      : [])
   ],
   // localforage@1.10.0 ships dist/localforage.js in its package.json "main"
   // but this version's dist only contains localforage.min.js, causing Rollup
