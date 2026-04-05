@@ -315,42 +315,42 @@ export default function BurgerMenu({ onFileSelect, onReplayIntro, onResumeFromCa
               </section>
 
               {/* ── Account ────────────────────────────────────────────── */}
-              {isSupabaseConfigured && (
-                <section className={styles.section}>
-                  <h3 className={styles.sectionTitle}>Account</h3>
-                  {isAuthenticated ? (
-                    <div className={styles.accountRow}>
-                      <span className={styles.accountName}>{accountName}</span>
-                      <button
-                        type="button"
-                        className={styles.signOutBtn}
-                        onClick={() => {
-                          if (confirm('Sign out?')) {
-                            signOut();
-                            close();
-                          }
-                        }}
-                      >
-                        Sign out
-                      </button>
-                    </div>
-                  ) : (
+              <section className={styles.section}>
+                <h3 className={styles.sectionTitle}>Account</h3>
+                {!isSupabaseConfigured ? (
+                  <p className={styles.aboutText}>Sign-in unavailable — app is running without cloud configuration.</p>
+                ) : isAuthenticated ? (
+                  <div className={styles.accountRow}>
+                    <span className={styles.accountName}>{accountName}</span>
                     <button
                       type="button"
-                      className={styles.signInBurgerBtn}
-                      onClick={() => { signInWithGoogle(); close(); }}
+                      className={styles.signOutBtn}
+                      onClick={() => {
+                        if (confirm('Sign out?')) {
+                          signOut();
+                          close();
+                        }
+                      }}
                     >
-                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
-                           stroke="currentColor" strokeWidth="2"
-                           strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                      </svg>
-                      Sign in to sync reading
+                      Sign out
                     </button>
-                  )}
-                </section>
-              )}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.signInBurgerBtn}
+                    onClick={() => { signInWithGoogle(); close(); }}
+                  >
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+                         stroke="currentColor" strokeWidth="2"
+                         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    Sign in to sync reading
+                  </button>
+                )}
+              </section>
 
               {/* ── About ───────────────────────────────────────── */}
               <section className={styles.section}>
